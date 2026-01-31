@@ -403,7 +403,7 @@ export default function HomePage() {
           </div>
 
           {/* 미리보기 */}
-          <div className="mt-6 rounded-2xl border border-neutral-200 bg-white p-5">
+          {/* <div className="mt-6 rounded-2xl border border-neutral-200 bg-white p-5">
             <div className="text-base font-semibold">미리보기 (상위 20행)</div>
             {!previewRows.length ? (
               <div className="mt-3 text-sm text-neutral-500">
@@ -462,11 +462,12 @@ export default function HomePage() {
                 </table>
               </div>
             )}
-          </div>
+          </div> */}
         </section>
 
+        {/* 스타일 맞춤 */}
         {/* B단계 */}
-        <section className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+        <section className="rounded-2xl border border-neutral-200 bg-neutral-900 p-5 text-neutral-200">
           <div className="text-lg font-semibold">
             B단계 · 한섬누리 결과 업로드 → ZIP 다운로드
           </div>
