@@ -21,6 +21,41 @@ const blankIfSameAsAddress = (address: string, message?: string) => {
   return m;
 };
 
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+const formatKstDateTime = (v: unknown) => {
+  if (!v) return "";
+
+  // 1) Date 객체 (네이버에서 자주 나옴)
+  if (v instanceof Date) {
+    const yyyy = v.getFullYear();
+    const mm = pad2(v.getMonth() + 1);
+    const dd = pad2(v.getDate());
+    const hh = pad2(v.getHours());
+    const mi = pad2(v.getMinutes());
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+  }
+
+  // 2) 문자열 정규화
+  const s = String(v).trim();
+  if (!s) return "";
+
+  // 이미 문자열인 경우
+  //  - 2026/01/31 08:42:13
+  //  - 2026-01-31 08:42
+  //  - 2026-01-31 08:42:13
+  // 전부 → 2026-01-31 08:42
+
+  // 슬래시 → 하이픈
+  const withDash = s.replace(/\//g, "-");
+
+  // 초 제거
+  return withDash.replace(
+    /^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})(:\d{2})?$/,
+    (_, d, hm) => `${d} ${hm}`,
+  );
+};
+
 const adminFields = (
   buyerName: string,
   buyerPhone: string,
@@ -61,7 +96,7 @@ export const normalizeRow = (
     return {
       channel,
       orderKey,
-      orderedAt: String(row["주문일시"] ?? "").trim(),
+      orderedAt: formatKstDateTime(row["주문일시"]),
       productName: String(row["상품명"] ?? "").trim(),
       quantity: toNumber(row["수량"]),
       receiverName,
@@ -90,7 +125,7 @@ export const normalizeRow = (
     return {
       channel,
       orderKey,
-      orderedAt: String(row["주문일자"] ?? "").trim(),
+      orderedAt: formatKstDateTime(row["주문일자"]),
       productName,
       quantity: toNumber(row["수량"]),
       receiverName,
@@ -120,7 +155,7 @@ export const normalizeRow = (
     return {
       channel,
       orderKey,
-      orderedAt: String(row["주문일"] ?? "").trim(),
+      orderedAt: formatKstDateTime(row["주문일"]),
       productName,
       quantity: toNumber(row["구매수(수량)"]),
       receiverName,
@@ -146,7 +181,7 @@ export const normalizeRow = (
   return {
     channel,
     orderKey,
-    orderedAt: String(row["주문일시"] ?? "").trim(), // 없으면 빈값
+    orderedAt: formatKstDateTime(row["주문일시"]), // 없으면 빈값
     productName: String(row["품목명"] ?? "").trim(),
     quantity: toNumber(row["박스수량"]),
     receiverName,

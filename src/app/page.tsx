@@ -7,8 +7,8 @@ import { normalizeRow } from "@/lib/mappings/normalize";
 import {
   readWorkbook,
   getFirstSheet,
-  readHeadersFromRow1,
   readRowsAsObjects,
+  readHeadersAuto,
 } from "@/lib/excel/read";
 import { buildIntegrationWorkbook } from "@/lib/excel/integrate";
 import { buildHansomMap } from "@/lib/excel/hansom";
@@ -62,11 +62,6 @@ export default function HomePage() {
     return c;
   }, [state.parsedFiles]);
 
-  const previewRows = useMemo(
-    () => state.standardRows.slice(0, 20),
-    [state.standardRows],
-  );
-
   const onUploadOriginals = async (files: File[]) => {
     setErrors([]);
     setBusy("원본 엑셀 분석 중…");
@@ -79,7 +74,8 @@ export default function HomePage() {
         const ab = await file.arrayBuffer();
         const wb = await readWorkbook(ab);
         const ws = getFirstSheet(wb);
-        const headers = readHeadersFromRow1(ws);
+
+        const { headers, headerRowIndex } = readHeadersAuto(ws);
         const channel = detectChannelByHeaders(headers);
 
         if (!channel) {
@@ -90,7 +86,7 @@ export default function HomePage() {
           continue;
         }
 
-        const rows = readRowsAsObjects(ws, headers);
+        const rows = readRowsAsObjects(ws, headers, headerRowIndex);
         rows.forEach((r) => {
           const s = normalizeRow(channel, r);
           // 주문번호 없으면 제외
@@ -107,13 +103,16 @@ export default function HomePage() {
         });
       }
 
-      // 주문번호 중복(같은 주문번호 여러 행)은 그대로 유지하되,
-      // 통합발주서에서도 여러 행으로 나가도록(기본 정책)
-      setState((prev) => ({
-        ...prev,
-        parsedFiles: [...prev.parsedFiles, ...parsed],
-        standardRows: [...prev.standardRows, ...standards],
-      }));
+      setState((prev) => {
+        const mergedRows = [...prev.standardRows, ...standards];
+        const dedupedRows = dedupeByOrderKey(mergedRows);
+
+        return {
+          ...prev,
+          parsedFiles: [...prev.parsedFiles, ...parsed],
+          standardRows: dedupedRows,
+        };
+      });
     } catch (e: any) {
       setErrors((p) => [...p, e?.message ?? "알 수 없는 에러"]);
     } finally {
@@ -308,6 +307,21 @@ export default function HomePage() {
     await clearState();
     setState({ parsedFiles: [], standardRows: [] });
     setErrors([]);
+  };
+
+  const dedupeByOrderKey = <T extends { channel: string; orderKey: string }>(
+    rows: T[],
+  ) => {
+    const map = new Map<string, T>();
+
+    for (const r of rows) {
+      const key = `${r.channel}:${r.orderKey}`;
+      if (!map.has(key)) {
+        map.set(key, r); // 첫 번째만 유지
+      }
+    }
+
+    return Array.from(map.values());
   };
 
   return (

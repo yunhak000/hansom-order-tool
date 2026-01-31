@@ -2,11 +2,43 @@ import ExcelJS from "exceljs";
 import { TStandardRow } from "@/lib/types";
 import { readWorkbook, getFirstSheet, readHeadersFromRow1 } from "./read";
 
-// 템플릿의 헤더명으로 열 인덱스 찾기
 const buildColIndex = (headers: string[]) => {
   const map = new Map<string, number>();
   headers.forEach((h, idx) => map.set(h, idx + 1));
   return map;
+};
+
+const dedupeByOrderKey = <T extends { channel: string; orderKey: string }>(
+  rows: T[],
+) => {
+  const map = new Map<string, T>();
+  for (const r of rows) {
+    const key = `${r.channel}:${r.orderKey}`;
+    if (!map.has(key)) map.set(key, r);
+  }
+  return Array.from(map.values());
+};
+
+// ✅ ArrayBuffer로 강제 변환 (SharedArrayBuffer 대응)
+const toArrayBuffer = (out: unknown): ArrayBuffer => {
+  if (out instanceof ArrayBuffer) return out;
+
+  if (
+    typeof SharedArrayBuffer !== "undefined" &&
+    out instanceof SharedArrayBuffer
+  ) {
+    const ab = new ArrayBuffer(out.byteLength);
+    new Uint8Array(ab).set(new Uint8Array(out));
+    return ab;
+  }
+
+  if (out instanceof Uint8Array) {
+    const ab = new ArrayBuffer(out.byteLength);
+    new Uint8Array(ab).set(out);
+    return ab;
+  }
+
+  throw new Error("엑셀 버퍼 변환에 실패했어요.");
 };
 
 export const buildIntegrationWorkbook = async (
@@ -19,31 +51,43 @@ export const buildIntegrationWorkbook = async (
   const headers = readHeadersFromRow1(ws);
   const col = buildColIndex(headers);
 
-  // 기존 데이터 영역(2행~)을 지우고 새로 쓰기 (서식은 템플릿 2행을 복제하는 방식이 안정적)
-  // 템플릿이 “2행에 예시 데이터”가 있다면, 그 행 스타일을 복제해서 사용
+  const rows = dedupeByOrderKey(standardRows);
+
   const baseRow = ws.getRow(2);
 
-  // 기존 2행~ 끝까지 제거
   if (ws.rowCount >= 2) {
     ws.spliceRows(2, ws.rowCount - 1);
   }
 
-  const writeCell = (row: ExcelJS.Row, header: string, value: any) => {
-    const c = col.get(header);
-    if (!c) return;
-    row.getCell(c).value = value ?? "";
+  const toCellValue = (v: unknown): ExcelJS.CellValue => {
+    if (v == null) return "";
+
+    // ExcelJS가 허용하는 기본 타입들
+    if (typeof v === "string") return v;
+    if (typeof v === "number") return v;
+    if (typeof v === "boolean") return v;
+    if (v instanceof Date) return v;
+
+    // 나머지는 안전하게 문자열로 변환
+    return String(v);
   };
 
-  standardRows.forEach((s, i) => {
+  const writeCell = (row: ExcelJS.Row, header: string, value: unknown) => {
+    const c = col.get(header);
+    if (!c) return;
+
+    row.getCell(c).value = toCellValue(value);
+  };
+
+  rows.forEach((s, i) => {
     const rIndex = 2 + i;
-    ws.insertRow(rIndex, []); // 빈 행 삽입
+    ws.insertRow(rIndex, []);
     const row = ws.getRow(rIndex);
 
-    // baseRow 스타일 복제
     row.height = baseRow.height;
+
     row.eachCell({ includeEmpty: true }, (cell, colNum) => {
       const baseCell = baseRow.getCell(colNum);
-      cell.style = { ...baseCell.style };
       cell.numFmt = baseCell.numFmt;
       cell.border = baseCell.border;
       cell.alignment = baseCell.alignment;
@@ -51,7 +95,7 @@ export const buildIntegrationWorkbook = async (
       cell.fill = baseCell.fill;
     });
 
-    writeCell(row, "주문일시", s.orderedAt ?? "");
+    writeCell(row, "주문일시", String(s.orderedAt ?? ""));
     writeCell(row, "상품명", s.productName);
     writeCell(row, "수량", s.quantity);
     writeCell(row, "수취인명", s.receiverName);
@@ -60,7 +104,7 @@ export const buildIntegrationWorkbook = async (
     writeCell(row, "통합배송지", s.address);
     writeCell(row, "배송메세지", s.message ?? "");
     writeCell(row, "상품주문번호", s.orderKey);
-    writeCell(row, "운송장번호", ""); // 통합 단계에서는 항상 비움
+    writeCell(row, "운송장번호", "");
     writeCell(row, "구매자명", s.buyerName);
     writeCell(row, "구매자연락처", s.buyerPhone);
     writeCell(row, "어드민용 구매자명", s.adminBuyerName);
@@ -70,5 +114,5 @@ export const buildIntegrationWorkbook = async (
   });
 
   const out = await wb.xlsx.writeBuffer();
-  return out as ArrayBuffer;
+  return toArrayBuffer(out);
 };
