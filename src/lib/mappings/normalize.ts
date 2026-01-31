@@ -187,7 +187,7 @@ export const normalizeRow = (
     receiverName,
     receiverPhone: normPhone(row["받는분전화번호"]),
     zipCode: String(row["받는분우편번호"] ?? "").trim(),
-    address: String(row["받는분주소"] ?? "").trim(),
+    address: String(row["받는분주소(전체, 분할)"] ?? "").trim(),
     message: String(row["배송메세지1"] ?? "").trim(),
     buyerName,
     buyerPhone,
