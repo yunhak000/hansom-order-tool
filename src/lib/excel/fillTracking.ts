@@ -23,7 +23,7 @@ const findHeaderCol = (headers: string[], target: string) => {
   const partial = headers.findIndex((h) =>
     String(h ?? "")
       .replace(/\s/g, "")
-      .includes(normalizedTarget),
+      .includes(normalizedTarget)
   );
 
   return partial !== -1 ? partial + 1 : -1;
@@ -44,10 +44,7 @@ const setDateColumnFormat = (ws: any, colIndex: number) => {
 const toArrayBuffer = (out: unknown): ArrayBuffer => {
   if (out instanceof ArrayBuffer) return out;
 
-  if (
-    typeof SharedArrayBuffer !== "undefined" &&
-    out instanceof SharedArrayBuffer
-  ) {
+  if (typeof SharedArrayBuffer !== "undefined" && out instanceof SharedArrayBuffer) {
     const ab = new ArrayBuffer(out.byteLength);
     new Uint8Array(ab).set(new Uint8Array(out));
     return ab;
@@ -62,11 +59,7 @@ const toArrayBuffer = (out: unknown): ArrayBuffer => {
   throw new Error("엑셀 버퍼 변환에 실패했어요.");
 };
 
-export const fillTrackingToOriginal = async (
-  channel: TChannel,
-  originalArrayBuffer: ArrayBuffer,
-  hansomMap: THansomResultMap,
-): Promise<ArrayBuffer> => {
+export const fillTrackingToOriginal = async (channel: TChannel, originalArrayBuffer: ArrayBuffer, hansomMap: THansomResultMap): Promise<ArrayBuffer> => {
   const wb = await readWorkbook(originalArrayBuffer);
   const ws = getFirstSheet(wb);
 
@@ -88,14 +81,8 @@ export const fillTrackingToOriginal = async (
   const keyCol = findHeaderCol(headers, keyHeader);
   const trackCol = findHeaderCol(headers, trackingHeader);
 
-  if (keyCol <= 0)
-    throw new Error(
-      `${channel} 엑셀에서 주문번호 컬럼(${keyHeader})을 찾지 못했어요.`,
-    );
-  if (trackCol <= 0)
-    throw new Error(
-      `${channel} 엑셀에서 운송장 컬럼(${trackingHeader})을 찾지 못했어요.`,
-    );
+  if (keyCol <= 0) throw new Error(`${channel} 엑셀에서 주문번호 컬럼(${keyHeader})을 찾지 못했어요.`);
+  if (trackCol <= 0) throw new Error(`${channel} 엑셀에서 운송장 컬럼(${trackingHeader})을 찾지 못했어요.`);
 
   ws.getColumn(keyCol).numFmt = "@";
   ws.getColumn(trackCol).numFmt = "@";
@@ -109,6 +96,19 @@ export const fillTrackingToOriginal = async (
     }
   }
 
+  // ✅ TOSS: 택배사코드 컬럼에 CJ대한통운 고정값 채우기
+  // (헤더명이 정확히 "택배사코드"가 맞는지 토스 파일에서 확인 필요)
+  const tossCourierHeader = "택배사코드";
+  const tossCourierCol = channel === "TOSS" ? findHeaderCol(headers, tossCourierHeader) : -1;
+
+  if (channel === "TOSS" && tossCourierCol <= 0) {
+    throw new Error(`토스 엑셀에서 '${tossCourierHeader}' 컬럼을 찾지 못했어요.`);
+  }
+
+  if (channel === "TOSS") {
+    ws.getColumn(tossCourierCol).numFmt = "@"; // 텍스트 고정(안전)
+  }
+
   for (let r = headerRowIndex + 1; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
 
@@ -118,6 +118,11 @@ export const fillTrackingToOriginal = async (
     const tracking = hansomMap.get(key);
     if (tracking) {
       setTextCell(row.getCell(trackCol), tracking);
+    }
+
+    // ✅ 토스면 택배사코드 고정값도 채움
+    if (channel === "TOSS") {
+      setTextCell(row.getCell(tossCourierCol), "CJ대한통운");
     }
 
     row.commit();
