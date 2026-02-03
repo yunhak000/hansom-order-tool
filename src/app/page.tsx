@@ -486,14 +486,14 @@ export default function HomePage() {
             B단계 · 한섬누리 결과 업로드 → ZIP 다운로드
           </div>
           <div className="mt-1 text-sm text-neutral-600">
-            한섬누리 결과 엑셀에서 거래처 주문번호(또는 상품주문번호)로 매칭해
+            한섬누리 결과 엑셀에서 거래처주문번호(또는 상품주문번호)로 매칭해
             운송장번호를 채웁니다.
           </div>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <UploadBox
               title="한섬누리 결과 엑셀 업로드"
-              description="운송장번호 + 거래처 주문번호(또는 상품주문번호)가 포함된 파일"
+              description="운송장번호 + 거래처주문번호(또는 상품주문번호)가 포함된 파일"
               multiple={false}
               onFiles={onUploadHansomResult}
             />
