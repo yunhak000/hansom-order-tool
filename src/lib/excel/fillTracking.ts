@@ -23,7 +23,7 @@ const findHeaderCol = (headers: string[], target: string) => {
   const partial = headers.findIndex((h) =>
     String(h ?? "")
       .replace(/\s/g, "")
-      .includes(normalizedTarget)
+      .includes(normalizedTarget),
   );
 
   return partial !== -1 ? partial + 1 : -1;
@@ -44,7 +44,10 @@ const setDateColumnFormat = (ws: any, colIndex: number) => {
 const toArrayBuffer = (out: unknown): ArrayBuffer => {
   if (out instanceof ArrayBuffer) return out;
 
-  if (typeof SharedArrayBuffer !== "undefined" && out instanceof SharedArrayBuffer) {
+  if (
+    typeof SharedArrayBuffer !== "undefined" &&
+    out instanceof SharedArrayBuffer
+  ) {
     const ab = new ArrayBuffer(out.byteLength);
     new Uint8Array(ab).set(new Uint8Array(out));
     return ab;
@@ -59,7 +62,29 @@ const toArrayBuffer = (out: unknown): ArrayBuffer => {
   throw new Error("엑셀 버퍼 변환에 실패했어요.");
 };
 
-export const fillTrackingToOriginal = async (channel: TChannel, originalArrayBuffer: ArrayBuffer, hansomMap: THansomResultMap): Promise<ArrayBuffer> => {
+// ✅ 네이버 "배송메세지" 셀 값 읽기 (수식 셀 대응)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const getCellText = (v: any) => {
+  if (v == null) return "";
+  if (
+    typeof v === "string" ||
+    typeof v === "number" ||
+    typeof v === "boolean"
+  ) {
+    return String(v).trim();
+  }
+  // ExcelJS formula cell: { formula, result }
+  if (typeof v === "object" && "result" in v) {
+    return String(v.result ?? "").trim();
+  }
+  return String(v).trim();
+};
+
+export const fillTrackingToOriginal = async (
+  channel: TChannel,
+  originalArrayBuffer: ArrayBuffer,
+  hansomMap: THansomResultMap,
+): Promise<ArrayBuffer> => {
   const wb = await readWorkbook(originalArrayBuffer);
   const ws = getFirstSheet(wb);
 
@@ -81,9 +106,16 @@ export const fillTrackingToOriginal = async (channel: TChannel, originalArrayBuf
   const keyCol = findHeaderCol(headers, keyHeader);
   const trackCol = findHeaderCol(headers, trackingHeader);
 
-  if (keyCol <= 0) throw new Error(`${channel} 엑셀에서 주문번호 컬럼(${keyHeader})을 찾지 못했어요.`);
-  if (trackCol <= 0) throw new Error(`${channel} 엑셀에서 운송장 컬럼(${trackingHeader})을 찾지 못했어요.`);
+  if (keyCol <= 0)
+    throw new Error(
+      `${channel} 엑셀에서 주문번호 컬럼(${keyHeader})을 찾지 못했어요.`,
+    );
+  if (trackCol <= 0)
+    throw new Error(
+      `${channel} 엑셀에서 운송장 컬럼(${trackingHeader})을 찾지 못했어요.`,
+    );
 
+  // 지수표기/자동변환 방지
   ws.getColumn(keyCol).numFmt = "@";
   ws.getColumn(trackCol).numFmt = "@";
 
@@ -97,17 +129,25 @@ export const fillTrackingToOriginal = async (channel: TChannel, originalArrayBuf
   }
 
   // ✅ TOSS: 택배사코드 컬럼에 CJ대한통운 고정값 채우기
-  // (헤더명이 정확히 "택배사코드"가 맞는지 토스 파일에서 확인 필요)
   const tossCourierHeader = "택배사코드";
-  const tossCourierCol = channel === "TOSS" ? findHeaderCol(headers, tossCourierHeader) : -1;
+  const tossCourierCol =
+    channel === "TOSS" ? findHeaderCol(headers, tossCourierHeader) : -1;
 
   if (channel === "TOSS" && tossCourierCol <= 0) {
-    throw new Error(`토스 엑셀에서 '${tossCourierHeader}' 컬럼을 찾지 못했어요.`);
+    throw new Error(
+      `토스 엑셀에서 '${tossCourierHeader}' 컬럼을 찾지 못했어요.`,
+    );
   }
 
   if (channel === "TOSS") {
-    ws.getColumn(tossCourierCol).numFmt = "@"; // 텍스트 고정(안전)
+    ws.getColumn(tossCourierCol).numFmt = "@"; // 텍스트 고정
   }
+
+  // ✅ NAVER: 통합배송지/배송메세지 컬럼 찾아서 "주소=메세지"면 메세지 비우기(수식 제거)
+  const naverAddrCol =
+    channel === "NAVER" ? findHeaderCol(headers, "통합배송지") : -1;
+  const naverMsgCol =
+    channel === "NAVER" ? findHeaderCol(headers, "배송메세지") : -1;
 
   for (let r = headerRowIndex + 1; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
@@ -123,6 +163,19 @@ export const fillTrackingToOriginal = async (channel: TChannel, originalArrayBuf
     // ✅ 토스면 택배사코드 고정값도 채움
     if (channel === "TOSS") {
       setTextCell(row.getCell(tossCourierCol), "CJ대한통운");
+    }
+
+    // ✅ 네이버: 배송메세지가 비었는데 "통합배송지로 표시되는" 케이스 방지
+    // - 배송메세지 셀이 수식인 경우 result가 주소로 나올 수 있음 → 값 자체를 ""로 덮어 수식 제거
+    if (channel === "NAVER" && naverAddrCol > 0 && naverMsgCol > 0) {
+      const addr = getCellText(row.getCell(naverAddrCol).value);
+      const msgCell = row.getCell(naverMsgCol);
+      const msg = getCellText(msgCell.value);
+
+      if (addr && msg && addr === msg) {
+        msgCell.value = ""; // ✅ 수식까지 제거
+        msgCell.numFmt = "@";
+      }
     }
 
     row.commit();

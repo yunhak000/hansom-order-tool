@@ -140,15 +140,6 @@ export default function HomePage() {
       const templateAB = await res.arrayBuffer();
       const u8 = new Uint8Array(templateAB);
 
-      console.log("template bytes:", u8.byteLength);
-      console.log(
-        "template magic:",
-        u8[0],
-        u8[1],
-        String.fromCharCode(u8[0]),
-        String.fromCharCode(u8[1]),
-      );
-
       const integrationAB = await buildIntegrationWorkbook(
         templateAB,
         state.standardRows,
