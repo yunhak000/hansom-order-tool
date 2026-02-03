@@ -51,6 +51,25 @@ export const buildIntegrationWorkbook = async (
   const headers = readHeadersFromRow1(ws);
   const col = buildColIndex(headers);
 
+  // ✅ 요구사항: 통합발주서 출력에서 "상품주문번호" 컬럼명을 "거래처주문번호"로 보이게
+  // - 값(주문번호 자체)은 그대로 사용
+  // - 템플릿이 아직 "상품주문번호" 헤더만 가지고 있어도 자동으로 바꿔치기
+  const orderKeyHeaderOld = "상품주문번호";
+  const orderKeyHeaderNew = "거래처주문번호";
+
+  const oldCol = col.get(orderKeyHeaderOld);
+  const newCol = col.get(orderKeyHeaderNew);
+
+  if (!newCol && oldCol) {
+    // 1행 헤더 텍스트 교체
+    ws.getRow(1).getCell(oldCol).value = orderKeyHeaderNew;
+    ws.getRow(1).commit();
+
+    // col index map도 갱신
+    col.delete(orderKeyHeaderOld);
+    col.set(orderKeyHeaderNew, oldCol);
+  }
+
   const rows = dedupeByOrderKey(standardRows);
 
   const baseRow = ws.getRow(2);
