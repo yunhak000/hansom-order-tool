@@ -103,7 +103,7 @@ export const buildIntegrationWorkbook = async (
     writeCell(row, "우편번호", s.zipCode ?? "");
     writeCell(row, "통합배송지", s.address);
     writeCell(row, "배송메세지", s.message ?? "");
-    writeCell(row, "상품주문번호", s.orderKey);
+    writeCell(row, "거래처주문번호", s.orderKey);
     writeCell(row, "운송장번호", "");
     writeCell(row, "구매자명", s.buyerName);
     writeCell(row, "구매자연락처", s.buyerPhone);
