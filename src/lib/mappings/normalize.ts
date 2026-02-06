@@ -21,6 +21,46 @@ const blankIfSameAsAddress = (address: string, message?: string) => {
   return m;
 };
 
+// ExcelJS 셀 값이 object(하이퍼링크/리치텍스트/수식 등)인 경우를 문자열로 안전 변환
+const cellText = (v: unknown) => {
+  if (v == null) return "";
+
+  // 기본 타입
+  if (
+    typeof v === "string" ||
+    typeof v === "number" ||
+    typeof v === "boolean"
+  ) {
+    return String(v).trim();
+  }
+
+  // ExcelJS 수식 셀: { formula, result }
+  if (typeof v === "object" && v && "result" in (v as any)) {
+    return String((v as any).result ?? "").trim();
+  }
+
+  // ExcelJS 하이퍼링크 셀: { text, hyperlink }
+  if (typeof v === "object" && v && "text" in (v as any)) {
+    return String((v as any).text ?? "").trim();
+  }
+
+  // ExcelJS 리치텍스트: { richText: [{ text: "..." }, ...] }
+  if (typeof v === "object" && v && "richText" in (v as any)) {
+    const parts = Array.isArray((v as any).richText) ? (v as any).richText : [];
+    return parts
+      .map((p: any) => p?.text ?? "")
+      .join("")
+      .trim();
+  }
+
+  // 최후: JSON으로 시도(디버깅에도 도움)
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return String(v).trim();
+  }
+};
+
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
 const formatKstDateTime = (v: unknown) => {
@@ -181,14 +221,14 @@ export const normalizeRow = (
   return {
     channel,
     orderKey,
-    orderedAt: formatKstDateTime(row["주문일시"]), // 없으면 빈값
-    productName: String(row["품목명"] ?? "").trim(),
+    orderedAt: formatKstDateTime(row["주문일시"]),
+    productName: cellText(row["품목명"]), // ✅ 변경
     quantity: toNumber(row["박스수량"]),
     receiverName,
     receiverPhone: normPhone(row["받는분전화번호"]),
-    zipCode: String(row["받는분우편번호"] ?? "").trim(),
-    address: String(row["받는분주소(전체, 분할)"] ?? "").trim(),
-    message: String(row["배송메세지1"] ?? "").trim(),
+    zipCode: cellText(row["받는분우편번호"]),
+    address: cellText(row["받는분주소(전체, 분할)"]), // ✅ 변경
+    message: cellText(row["배송메세지1"]), // ✅ 변경
     buyerName,
     buyerPhone,
     ...a,
