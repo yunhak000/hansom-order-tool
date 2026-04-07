@@ -128,14 +128,16 @@ export const fillTrackingToOriginal = async (
     }
   }
 
-  // ✅ TOSS: 택배사코드 컬럼에 CJ대한통운 고정값 채우기
-  const tossCourierHeader = "택배사코드";
-  const tossCourierCol =
-    channel === "TOSS" ? findHeaderCol(headers, tossCourierHeader) : -1;
+  // ✅ TOSS: 구양식 택배사코드 / 신양식 택배사에 CJ대한통운 고정값 채우기
+  let tossCourierCol = -1;
+  if (channel === "TOSS") {
+    tossCourierCol = findHeaderCol(headers, "택배사코드");
+    if (tossCourierCol <= 0) tossCourierCol = findHeaderCol(headers, "택배사");
+  }
 
   if (channel === "TOSS" && tossCourierCol <= 0) {
     throw new Error(
-      `토스 엑셀에서 '${tossCourierHeader}' 컬럼을 찾지 못했어요.`,
+      "토스 엑셀에서 '택배사코드' 또는 '택배사' 컬럼을 찾지 못했어요.",
     );
   }
 
@@ -160,8 +162,8 @@ export const fillTrackingToOriginal = async (
       setTextCell(row.getCell(trackCol), tracking);
     }
 
-    // ✅ 토스면 택배사코드 고정값도 채움
-    if (channel === "TOSS") {
+    // ✅ 토스면 택배사(코드) 고정값도 채움
+    if (channel === "TOSS" && tossCourierCol > 0) {
       setTextCell(row.getCell(tossCourierCol), "CJ대한통운");
     }
 

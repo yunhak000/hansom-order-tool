@@ -14,6 +14,21 @@ const toNumber = (v: unknown) => {
 
 const normText = (v: unknown) => String(v ?? "").trim();
 
+/** 채널 엑셀 양식 변경 대비: 여러 컬럼명 중 비어 있지 않은 첫 값 */
+const pickRow = (row: Record<string, unknown>, ...keys: string[]): unknown => {
+  for (const k of keys) {
+    const v = row[k];
+    if (v != null && String(v).trim() !== "") return v;
+  }
+  return keys.length ? row[keys[0]!] : undefined;
+};
+
+/** 토스 엑셀 안내 행(수정 불가/수정 가능) — 통합발주서에서 제외 */
+const isTossTemplateHintText = (v: unknown) => {
+  const s = String(v ?? "").trim();
+  return s === "수정 불가" || s === "수정 가능";
+};
+
 const blankIfSameAsAddress = (address: string, message?: string) => {
   const a = normText(address);
   const m = normText(message);
@@ -152,12 +167,18 @@ export const normalizeRow = (
   }
 
   if (channel === "TOSS") {
-    const orderKey = String(row["주문상품번호"] ?? "").trim();
+    let orderKey = String(row["주문상품번호"] ?? "").trim();
+    if (
+      isTossTemplateHintText(row["주문상품번호"]) ||
+      isTossTemplateHintText(row["주문번호"])
+    ) {
+      orderKey = "";
+    }
     const buyerName = normName(row["구매자명"]);
     const buyerPhone = normPhone(row["구매자 연락처"]);
     const receiverName = normName(row["수령인명"]);
     const product = normText(row["상품명"]);
-    const option = normText(row["옵션"]); // ⚠️ 토스 파일의 옵션 컬럼명이 정확히 "옵션"인지 확인 필요
+    const option = normText(pickRow(row, "옵션명", "옵션"));
     const productName = option ? `${product} ${option}` : product;
 
     const a = adminFields(buyerName, buyerPhone, receiverName);
@@ -165,14 +186,16 @@ export const normalizeRow = (
     return {
       channel,
       orderKey,
-      orderedAt: formatKstDateTime(row["주문일자"]),
+      orderedAt: formatKstDateTime(
+        pickRow(row, "주문일시", "주문일자"),
+      ),
       productName,
-      quantity: toNumber(row["수량"]),
+      quantity: toNumber(pickRow(row, "주문건수", "수량")),
       receiverName,
       receiverPhone: normPhone(row["수령인 연락처"]),
       zipCode: String(row["우편번호"] ?? "").trim(),
-      address: String(row["주소"] ?? "").trim(),
-      message: String(row["요청사항"] ?? "").trim(),
+      address: normText(pickRow(row, "배송지", "주소")),
+      message: normText(pickRow(row, "주문요청사항", "요청사항")),
       buyerName,
       buyerPhone,
       ...a,
