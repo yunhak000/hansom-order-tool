@@ -5,8 +5,14 @@ const XLSX_CONTENT_TYPE =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 const DECRYPT_TIMEOUT_MS = 15000;
+type TXlsxPopulateWorkbook = {
+  outputAsync: (opts: { type: "nodebuffer" }) => Promise<Buffer>;
+};
 
-const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number) => {
+const withTimeout = async <T,>(
+  promise: Promise<T>,
+  timeoutMs: number,
+): Promise<T> => {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
@@ -15,7 +21,7 @@ const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number) => {
   });
 
   try {
-    return await Promise.race([promise, timeoutPromise]);
+    return (await Promise.race([promise, timeoutPromise])) as T;
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
   }
@@ -61,10 +67,10 @@ export async function POST(req: Request) {
 
     const input = Buffer.from(await file.arrayBuffer());
 
-    const workbook = await withTimeout(
+    const workbook = (await withTimeout(
       XlsxPopulate.fromDataAsync(input, { password }),
       DECRYPT_TIMEOUT_MS,
-    );
+    )) as TXlsxPopulateWorkbook;
 
     const decrypted = await withTimeout(
       workbook.outputAsync({ type: "nodebuffer" }) as Promise<Buffer>,
@@ -78,7 +84,7 @@ export async function POST(req: Request) {
       elapsedMs: Date.now() - startAt,
     });
 
-    return new NextResponse(decrypted, {
+    return new NextResponse(new Uint8Array(decrypted), {
       status: 200,
       headers: {
         "Content-Type": XLSX_CONTENT_TYPE,
