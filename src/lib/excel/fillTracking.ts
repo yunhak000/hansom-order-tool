@@ -130,9 +130,11 @@ export const fillTrackingToOriginal = async (
 
   // ✅ TOSS: 구양식 택배사코드 / 신양식 택배사에 CJ대한통운 고정값 채우기
   let tossCourierCol = -1;
+  let tossStatusCol = -1;
   if (channel === "TOSS") {
     tossCourierCol = findHeaderCol(headers, "택배사코드");
     if (tossCourierCol <= 0) tossCourierCol = findHeaderCol(headers, "택배사");
+    tossStatusCol = findHeaderCol(headers, "주문상태");
   }
 
   if (channel === "TOSS" && tossCourierCol <= 0) {
@@ -140,9 +142,13 @@ export const fillTrackingToOriginal = async (
       "토스 엑셀에서 '택배사코드' 또는 '택배사' 컬럼을 찾지 못했어요.",
     );
   }
+  if (channel === "TOSS" && tossStatusCol <= 0) {
+    throw new Error("토스 엑셀에서 '주문상태' 컬럼을 찾지 못했어요.");
+  }
 
   if (channel === "TOSS") {
     ws.getColumn(tossCourierCol).numFmt = "@"; // 텍스트 고정
+    ws.getColumn(tossStatusCol).numFmt = "@"; // 텍스트 고정
   }
 
   // ✅ NAVER: 통합배송지/배송메세지 컬럼 찾아서 "주소=메세지"면 메세지 비우기(수식 제거)
@@ -160,6 +166,11 @@ export const fillTrackingToOriginal = async (
     const tracking = hansomMap.get(key);
     if (tracking) {
       setTextCell(row.getCell(trackCol), tracking);
+
+      // ✅ 토스면 송장번호가 채워진 행에만 주문상태를 "배송중"으로 변경
+      if (channel === "TOSS" && tossStatusCol > 0) {
+        setTextCell(row.getCell(tossStatusCol), "배송중");
+      }
     }
 
     // ✅ 토스면 택배사(코드) 고정값도 채움
