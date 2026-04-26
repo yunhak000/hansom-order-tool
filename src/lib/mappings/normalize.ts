@@ -111,19 +111,8 @@ const formatKstDateTime = (v: unknown) => {
   );
 };
 
-const adminFields = (
-  buyerName: string,
-  buyerPhone: string,
-  receiverName: string,
-) => {
+const adminFields = (buyerName: string, buyerPhone: string) => {
   const b = normName(buyerName);
-  const r = normName(receiverName);
-  if (b && r && b === r) {
-    return {
-      adminBuyerName: "기타",
-      adminBuyerPhone: "010-6837-4121",
-    };
-  }
   return {
     adminBuyerName: b,
     adminBuyerPhone: normPhone(buyerPhone),
@@ -146,7 +135,7 @@ export const normalizeRow = (
     const address = normText(row["통합배송지"]);
     const message = blankIfSameAsAddress(address, row["배송메세지"] as string);
 
-    const a = adminFields(buyerName, buyerPhone, receiverName);
+    const a = adminFields(buyerName, buyerPhone);
 
     return {
       channel,
@@ -181,7 +170,7 @@ export const normalizeRow = (
     const option = normText(pickRow(row, "옵션명", "옵션"));
     const productName = option ? `${product} ${option}` : product;
 
-    const a = adminFields(buyerName, buyerPhone, receiverName);
+    const a = adminFields(buyerName, buyerPhone);
 
     return {
       channel,
@@ -209,7 +198,7 @@ export const normalizeRow = (
     const buyerPhone = normPhone(row["구매자전화번호"]);
     const receiverName = normName(row["수취인이름"]);
 
-    const a = adminFields(buyerName, buyerPhone, receiverName);
+    const a = adminFields(buyerName, buyerPhone);
 
     const productName =
       String(row["노출상품명(옵션명)"] ?? "").trim() ||
@@ -239,7 +228,7 @@ export const normalizeRow = (
   const buyerPhone = normPhone(row["보내는분전화번호"]);
   const receiverName = normName(row["받는분성명"]);
 
-  const a = adminFields(buyerName, buyerPhone, receiverName);
+  const a = adminFields(buyerName, buyerPhone);
 
   return {
     channel,
