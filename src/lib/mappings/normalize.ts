@@ -120,12 +120,12 @@ const adminFields = (
   const r = normName(receiverName);
   if (b && r && b === r) {
     return {
-      adminBuyerName: "귤수저",
+      adminBuyerName: "기타",
       adminBuyerPhone: "010-6837-4121",
     };
   }
   return {
-    adminBuyerName: `${b}/귤수저`,
+    adminBuyerName: `${b}/기타`,
     adminBuyerPhone: normPhone(buyerPhone),
   };
 };

@@ -14,7 +14,7 @@ export const detectChannelByHeaders = (headers: string[]): TChannel | null => {
   if (hasAll(headers, ["주문번호", "수취인이름", "운송장번호"]))
     return "COUPANG";
 
-  // 귤수저(개인)
+  // 기타
   if (hasAll(headers, ["고객주문번호", "보내는분성명", "받는분성명"]))
     return "MANDARINSPOON";
 

@@ -23,11 +23,11 @@ export const buildHansomMap = async (
 
   if (!keyField)
     throw new Error(
-      "한섬누리 결과 엑셀에서 주문번호 컬럼을 찾지 못했어요. (거래처주문번호/상품주문번호)",
+      "결과 엑셀에서 주문번호 컬럼을 찾지 못했어요. (거래처주문번호/상품주문번호)",
     );
 
   if (!headers.includes("운송장번호"))
-    throw new Error("한섬누리 결과 엑셀에서 운송장번호 컬럼을 찾지 못했어요.");
+    throw new Error("결과 엑셀에서 운송장번호 컬럼을 찾지 못했어요.");
 
   const map: THansomResultMap = new Map();
   rows.forEach((r) => {

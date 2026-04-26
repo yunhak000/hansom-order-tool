@@ -64,7 +64,7 @@ export const UploadBox = ({
             : "파일을 드래그하거나 클릭해서 업로드"}
         </div>
         <div className="mt-1 text-xs text-neutral-500">
-          여러 개 파일을 한 번에 올려도 자동으로 네이버/토스/쿠팡/귤수저로
+          여러 개 파일을 한 번에 올려도 자동으로 네이버/토스/쿠팡/기타로
           분류합니다.
         </div>
       </div>

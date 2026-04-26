@@ -156,7 +156,7 @@ export default function HomePage() {
 
   const onUploadHansomResult = async (files: File[]) => {
     setErrors([]);
-    setBusy("한섬누리 결과 분석 중…");
+    setBusy("결과 파일 분석 중…");
 
     try {
       const file = files[0];
@@ -212,7 +212,7 @@ export default function HomePage() {
 
     try {
       if (!state.hansomMap) {
-        setErrors(["한섬누리 결과 엑셀을 먼저 업로드해주세요."]);
+        setErrors(["결과 엑셀을 먼저 업로드해주세요."]);
         return;
       }
 
@@ -271,12 +271,12 @@ export default function HomePage() {
           gyul.sourceArrayBuffer,
           map,
         );
-        outputs.push({ filename: `귤수저_${todayKST()}.xlsx`, data: out });
+        outputs.push({ filename: `기타_${todayKST()}.xlsx`, data: out });
       }
 
       if (!outputs.length) {
         setErrors([
-          "다운로드할 결과가 없어요. 원본 파일/한섬누리 결과를 확인해주세요.",
+          "다운로드할 결과가 없어요. 원본 파일/결과 파일을 확인해주세요.",
         ]);
         return;
       }
@@ -319,11 +319,11 @@ export default function HomePage() {
     <main className="mx-auto max-w-5xl px-4 py-10">
       <header className="mb-8">
         <h1 className="text-2xl font-bold text-neutral-200">
-          한섬누리 통합발주 & 운송장 역변환 도구
+          통합발주 & 운송장 역변환 도구
         </h1>
         <p className="mt-2 text-sm text-neutral-600">
-          네이버/토스/쿠팡/귤수저 주문 엑셀을 한 번에 업로드 → 통합발주서 생성 →
-          한섬누리 결과 업로드 → ZIP 다운로드
+          네이버/토스/쿠팡/기타 주문 엑셀을 한 번에 업로드 → 통합발주서 생성 →
+          결과 업로드 → ZIP 다운로드
         </p>
       </header>
 
@@ -351,7 +351,7 @@ export default function HomePage() {
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <UploadBox
               title="원본 주문 엑셀 업로드 (한 번에)"
-              description="네이버/토스/쿠팡/귤수저 파일을 여러 개 선택해서 올려도 됩니다."
+              description="네이버/토스/쿠팡/기타 파일을 여러 개 선택해서 올려도 됩니다."
               onFiles={onUploadOriginals}
             />
 
@@ -377,7 +377,7 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div className="rounded-xl bg-neutral-50 p-3">
-                  <div className="text-neutral-500">귤수저 파일</div>
+                  <div className="text-neutral-500">기타 파일</div>
                   <div className="mt-1 text-lg font-bold">
                     {channelCount.MANDARINSPOON}
                   </div>
@@ -474,16 +474,16 @@ export default function HomePage() {
         {/* B단계 */}
         <section className="rounded-2xl border border-neutral-200 bg-neutral-900 p-5 text-neutral-200">
           <div className="text-lg font-semibold">
-            B단계 · 한섬누리 결과 업로드 → ZIP 다운로드
+            B단계 · 결과 업로드 → ZIP 다운로드
           </div>
           <div className="mt-1 text-sm text-neutral-600">
-            한섬누리 결과 엑셀에서 거래처주문번호(또는 상품주문번호)로 매칭해
+            결과 엑셀에서 거래처주문번호(또는 상품주문번호)로 매칭해
             운송장번호를 채웁니다.
           </div>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <UploadBox
-              title="한섬누리 결과 엑셀 업로드"
+              title="결과 엑셀 업로드"
               description="운송장번호 + 거래처주문번호(또는 상품주문번호)가 포함된 파일"
               multiple={false}
               onFiles={onUploadHansomResult}
@@ -494,7 +494,7 @@ export default function HomePage() {
 
               {!state.matchReport ? (
                 <div className="mt-3 text-sm text-neutral-500">
-                  한섬누리 결과를 업로드하면 리포트가 표시됩니다.
+                  결과 파일을 업로드하면 리포트가 표시됩니다.
                 </div>
               ) : (
                 <div className="mt-3 space-y-2 text-sm">
@@ -505,7 +505,7 @@ export default function HomePage() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-neutral-600">한섬누리 행 수</span>
+                    <span className="text-neutral-600">결과 행 수</span>
                     <span className="font-semibold">
                       {state.matchReport.totalHansomRows}
                     </span>
@@ -520,7 +520,7 @@ export default function HomePage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-neutral-600">
-                      원본에 있는데 한섬누리에 없음
+                      원본에 있는데 결과에 없음
                     </span>
                     <span className="font-semibold">
                       {state.matchReport.missingInHansom.length}
@@ -528,7 +528,7 @@ export default function HomePage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-neutral-600">
-                      한섬누리에 있는데 원본에 없음
+                      결과에 있는데 원본에 없음
                     </span>
                     <span className="font-semibold">
                       {state.matchReport.missingInOrigin.length}
@@ -542,7 +542,7 @@ export default function HomePage() {
                 disabled={!state.hansomMap || !!busy}
                 className="mt-4 w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40"
               >
-                ZIP 다운로드 (네이버/토스/쿠팡/귤수저)
+                ZIP 다운로드 (네이버/토스/쿠팡/기타)
               </button>
 
               <div className="mt-2 text-xs text-neutral-500">

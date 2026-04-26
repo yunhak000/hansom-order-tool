@@ -54,7 +54,7 @@ export type TAppState = {
     totalOriginalRows: number;
     totalHansomRows: number;
     matched: number;
-    missingInHansom: string[]; // 원본에 있는데 한섬누리에 없는 주문번호
-    missingInOrigin: string[]; // 한섬누리에 있는데 원본에 없는 주문번호
+    missingInHansom: string[]; // 원본에 있는데 결과에 없는 주문번호
+    missingInOrigin: string[]; // 결과에 있는데 원본에 없는 주문번호
   };
 };
