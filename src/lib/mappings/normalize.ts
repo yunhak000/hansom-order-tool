@@ -125,7 +125,7 @@ const adminFields = (
     };
   }
   return {
-    adminBuyerName: `${b}/기타`,
+    adminBuyerName: b,
     adminBuyerPhone: normPhone(buyerPhone),
   };
 };

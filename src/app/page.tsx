@@ -42,8 +42,25 @@ export default function HomePage() {
   });
 
   const [errors, setErrors] = useState<string[]>([]);
+  const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [sessionPassword, setSessionPassword] = useState("");
+
+  useEffect(() => {
+    setErrorModalOpen(errors.length > 0);
+  }, [errors]);
+
+  useEffect(() => {
+    if (!errorModalOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setErrorModalOpen(false);
+        setErrors([]);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [errorModalOpen]);
 
   const decryptFileOnServer = async (file: File, password: string) => {
     const form = new FormData();
@@ -107,6 +124,7 @@ export default function HomePage() {
       const decryptedAb = await decryptFileOnServer(file, password);
       await readWorkbook(decryptedAb); // 복호화 결과 검증
       setSessionPassword(password);
+      setErrors([]);
       return decryptedAb;
     };
 
@@ -118,6 +136,10 @@ export default function HomePage() {
         if ((e as TAppError)?.code === "INVALID_PASSWORD") {
           wrongCount += 1;
           lastError = "마지막으로 입력한 비밀번호가 맞지 않았어요.";
+          const remain = maxWrongCount - wrongCount;
+          setErrors([
+            `비밀번호가 올바르지 않아요. 남은 시도 횟수: ${remain}회`,
+          ]);
         } else {
           throw new Error(
             e?.message ??
@@ -157,6 +179,10 @@ export default function HomePage() {
         if ((e as TAppError)?.code === "INVALID_PASSWORD") {
           wrongCount += 1;
           lastError = "비밀번호가 올바르지 않아요.";
+          const remain = maxWrongCount - wrongCount;
+          setErrors([
+            `비밀번호가 올바르지 않아요. 남은 시도 횟수: ${remain}회`,
+          ]);
           continue;
         }
         throw new Error(
@@ -697,17 +723,6 @@ export default function HomePage() {
             )}
           </div>
 
-          {!!errors.length && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-              <div className="font-semibold">오류</div>
-              <ul className="mt-2 list-disc space-y-1 pl-5">
-                {errors.map((e, idx) => (
-                  <li key={idx}>{e}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           <div className="mt-4 text-xs text-neutral-500">
             * 원본 파일이 여러 개인 채널(예: 네이버 2~3개) 출력은 현재 “채널별
             첫 파일” 기준으로 생성되어 있어요. 다음 단계에서 “채널별 병합
@@ -716,6 +731,42 @@ export default function HomePage() {
           </div>
         </section>
       </div>
+
+      {errorModalOpen && errors.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4"
+          onClick={() => {
+            setErrorModalOpen(false);
+            setErrors([]);
+          }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-red-200 bg-white p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-lg font-semibold text-red-700">
+              오류가 발생했어요
+            </div>
+            <div className="mt-1 text-sm text-neutral-600">
+              총 {errors.length}건의 오류를 확인해주세요.
+            </div>
+            <ul className="mt-4 max-h-72 list-disc space-y-2 overflow-auto pl-5 text-sm text-red-800">
+              {errors.map((e, idx) => (
+                <li key={`${idx}-${e}`}>{e}</li>
+              ))}
+            </ul>
+            <button
+              className="mt-5 w-full rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white"
+              onClick={() => {
+                setErrorModalOpen(false);
+                setErrors([]);
+              }}
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
