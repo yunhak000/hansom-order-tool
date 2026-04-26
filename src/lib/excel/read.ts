@@ -77,7 +77,7 @@ export const readWorkbook = async (arrayBuffer: ArrayBuffer) => {
 
   try {
     await wb.xlsx.load(arrayBuffer);
-  } catch (e) {
+  } catch {
     // 암호/손상/특수 포맷 등으로 파싱 실패 시
     throw new Error("엑셀을 읽을 수 없어요. 파일 형식이나 비밀번호를 확인해주세요.");
   }

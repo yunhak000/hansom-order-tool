@@ -35,6 +35,17 @@ const makeAppError = (message: string, code?: string): TAppError => {
   return err;
 };
 
+const getErrorCode = (e: unknown): string | undefined => {
+  if (typeof e !== "object" || e === null || !("code" in e)) return undefined;
+  const { code } = e as { code?: unknown };
+  return typeof code === "string" ? code : undefined;
+};
+
+const getErrorMessage = (e: unknown, fallback = "알 수 없는 에러") => {
+  if (e instanceof Error && e.message) return e.message;
+  return fallback;
+};
+
 export default function HomePage() {
   const [state, setState] = useState<TAppState>({
     parsedFiles: [],
@@ -132,8 +143,8 @@ export default function HomePage() {
     if (sessionPassword.trim()) {
       try {
         return await tryWithPassword(sessionPassword.trim());
-      } catch (e: any) {
-        if ((e as TAppError)?.code === "INVALID_PASSWORD") {
+      } catch (e: unknown) {
+        if (getErrorCode(e) === "INVALID_PASSWORD") {
           wrongCount += 1;
           lastError = "마지막으로 입력한 비밀번호가 맞지 않았어요.";
           const remain = maxWrongCount - wrongCount;
@@ -142,8 +153,10 @@ export default function HomePage() {
           ]);
         } else {
           throw new Error(
-            e?.message ??
+            getErrorMessage(
+              e,
               "암호화된 파일을 처리하지 못했어요. 잠시 후 다시 시도해주세요.",
+            ),
           );
         }
       }
@@ -175,8 +188,8 @@ export default function HomePage() {
 
       try {
         return await tryWithPassword(password);
-      } catch (e: any) {
-        if ((e as TAppError)?.code === "INVALID_PASSWORD") {
+      } catch (e: unknown) {
+        if (getErrorCode(e) === "INVALID_PASSWORD") {
           wrongCount += 1;
           lastError = "비밀번호가 올바르지 않아요.";
           const remain = maxWrongCount - wrongCount;
@@ -186,8 +199,10 @@ export default function HomePage() {
           continue;
         }
         throw new Error(
-          e?.message ??
+          getErrorMessage(
+            e,
             "암호화된 파일을 처리하지 못했어요. 잠시 후 다시 시도해주세요.",
+          ),
         );
       }
     }
@@ -272,8 +287,8 @@ export default function HomePage() {
           standardRows: dedupedRows,
         };
       });
-    } catch (e: any) {
-      setErrors((p) => [...p, e?.message ?? "알 수 없는 에러"]);
+    } catch (e: unknown) {
+      setErrors((p) => [...p, getErrorMessage(e)]);
     } finally {
       setBusy(null);
     }
@@ -304,8 +319,8 @@ export default function HomePage() {
 
       setState((prev) => ({ ...prev, integrationXlsx: integrationAB }));
       downloadXlsx(integrationAB, `통합발주서_${todayKST()}.xlsx`);
-    } catch (e: any) {
-      setErrors((p) => [...p, e?.message ?? "알 수 없는 에러"]);
+    } catch (e: unknown) {
+      setErrors((p) => [...p, getErrorMessage(e)]);
     } finally {
       setBusy(null);
     }
@@ -356,8 +371,8 @@ export default function HomePage() {
           missingInOrigin,
         },
       }));
-    } catch (e: any) {
-      setErrors((p) => [...p, e?.message ?? "알 수 없는 에러"]);
+    } catch (e: unknown) {
+      setErrors((p) => [...p, getErrorMessage(e)]);
     } finally {
       setBusy(null);
     }
@@ -439,8 +454,8 @@ export default function HomePage() {
       }
 
       await downloadZip(`결과_${todayKST()}.zip`, outputs);
-    } catch (e: any) {
-      setErrors((p) => [...p, e?.message ?? "알 수 없는 에러"]);
+    } catch (e: unknown) {
+      setErrors((p) => [...p, getErrorMessage(e)]);
     } finally {
       setBusy(null);
     }

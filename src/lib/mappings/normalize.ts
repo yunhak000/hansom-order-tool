@@ -14,6 +14,9 @@ const toNumber = (v: unknown) => {
 
 const normText = (v: unknown) => String(v ?? "").trim();
 
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null;
+
 /** 채널 엑셀 양식 변경 대비: 여러 컬럼명 중 비어 있지 않은 첫 값 */
 const pickRow = (row: Record<string, unknown>, ...keys: string[]): unknown => {
   for (const k of keys) {
@@ -50,20 +53,20 @@ const cellText = (v: unknown) => {
   }
 
   // ExcelJS 수식 셀: { formula, result }
-  if (typeof v === "object" && v && "result" in (v as any)) {
-    return String((v as any).result ?? "").trim();
+  if (isRecord(v) && "result" in v) {
+    return String(v.result ?? "").trim();
   }
 
   // ExcelJS 하이퍼링크 셀: { text, hyperlink }
-  if (typeof v === "object" && v && "text" in (v as any)) {
-    return String((v as any).text ?? "").trim();
+  if (isRecord(v) && "text" in v) {
+    return String(v.text ?? "").trim();
   }
 
   // ExcelJS 리치텍스트: { richText: [{ text: "..." }, ...] }
-  if (typeof v === "object" && v && "richText" in (v as any)) {
-    const parts = Array.isArray((v as any).richText) ? (v as any).richText : [];
+  if (isRecord(v) && "richText" in v) {
+    const parts = Array.isArray(v.richText) ? v.richText : [];
     return parts
-      .map((p: any) => p?.text ?? "")
+      .map((p) => (isRecord(p) ? String(p.text ?? "") : ""))
       .join("")
       .trim();
   }

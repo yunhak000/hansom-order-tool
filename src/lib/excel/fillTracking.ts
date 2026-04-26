@@ -1,3 +1,4 @@
+import ExcelJS from "exceljs";
 import { TChannel, THansomResultMap } from "@/lib/types";
 import { readWorkbook, getFirstSheet, readHeadersAuto } from "./read";
 
@@ -29,15 +30,16 @@ const findHeaderCol = (headers: string[], target: string) => {
   return partial !== -1 ? partial + 1 : -1;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const setTextCell = (cell: any, value: unknown) => {
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null;
+
+const setTextCell = (cell: ExcelJS.Cell, value: unknown) => {
   cell.value = value == null ? "" : String(value);
   cell.numFmt = "@";
 };
 
 // ✅ 날짜 컬럼 표시 형식 강제
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const setDateColumnFormat = (ws: any, colIndex: number) => {
+const setDateColumnFormat = (ws: ExcelJS.Worksheet, colIndex: number) => {
   ws.getColumn(colIndex).numFmt = "yyyy-mm-dd hh:mm";
 };
 
@@ -63,8 +65,7 @@ const toArrayBuffer = (out: unknown): ArrayBuffer => {
 };
 
 // ✅ 네이버 "배송메세지" 셀 값 읽기 (수식 셀 대응)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getCellText = (v: any) => {
+const getCellText = (v: ExcelJS.CellValue | undefined) => {
   if (v == null) return "";
   if (
     typeof v === "string" ||
@@ -74,7 +75,7 @@ const getCellText = (v: any) => {
     return String(v).trim();
   }
   // ExcelJS formula cell: { formula, result }
-  if (typeof v === "object" && "result" in v) {
+  if (isRecord(v) && "result" in v) {
     return String(v.result ?? "").trim();
   }
   return String(v).trim();
