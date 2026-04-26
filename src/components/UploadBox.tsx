@@ -8,6 +8,7 @@ type Props = {
   description?: string;
   accept?: Record<string, string[]>;
   multiple?: boolean;
+  disabled?: boolean;
   onFiles: (files: File[]) => void;
 };
 
@@ -20,6 +21,7 @@ export const UploadBox = ({
     ],
   },
   multiple = true,
+  disabled = false,
   onFiles,
 }: Props) => {
   const onDrop = useCallback(
@@ -34,6 +36,7 @@ export const UploadBox = ({
     onDrop,
     accept,
     multiple,
+    disabled,
   });
 
   return (
@@ -52,6 +55,7 @@ export const UploadBox = ({
         {...getRootProps()}
         className={[
           "mt-4 cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition",
+          disabled ? "cursor-not-allowed opacity-50" : "",
           isDragActive
             ? "border-neutral-500 bg-neutral-50"
             : "border-neutral-200 hover:bg-neutral-50",

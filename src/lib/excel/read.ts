@@ -79,16 +79,12 @@ export const readWorkbook = async (arrayBuffer: ArrayBuffer) => {
     await wb.xlsx.load(arrayBuffer);
   } catch (e) {
     // 암호/손상/특수 포맷 등으로 파싱 실패 시
-    throw new Error(
-      "엑셀을 읽을 수 없어요. (네이버 파일이라면 비밀번호를 해제한 뒤 다시 저장해서 업로드해주세요)",
-    );
+    throw new Error("엑셀을 읽을 수 없어요. 파일 형식이나 비밀번호를 확인해주세요.");
   }
 
   // 워크시트가 0개로 인식되는 경우도 암호/특수 포맷에서 자주 발생
   if (!wb.worksheets || wb.worksheets.length === 0) {
-    throw new Error(
-      "엑셀 시트를 찾지 못했어요. (네이버 파일이라면 비밀번호를 해제한 뒤 다시 저장해서 업로드해주세요)",
-    );
+    throw new Error("엑셀 시트를 찾지 못했어요. 파일 내용을 다시 확인해주세요.");
   }
 
   return wb;

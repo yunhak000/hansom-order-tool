@@ -16,7 +16,6 @@ import { fillTrackingToOriginal } from "@/lib/excel/fillTracking";
 import { downloadZip, downloadXlsx } from "@/lib/excel/zip";
 import { clearState, loadState, saveState } from "@/lib/storage/storage";
 import { TAppState, TChannel, TParsedFile, TStandardRow } from "@/lib/types";
-import { z } from "zod";
 
 const todayKST = () => {
   // 브라우저 로컬이 KST일 가능성이 높지만, 포맷은 단순하게 local date 사용
@@ -28,6 +27,13 @@ const todayKST = () => {
 };
 
 const id = () => Math.random().toString(36).slice(2);
+type TAppError = Error & { code?: string };
+
+const makeAppError = (message: string, code?: string): TAppError => {
+  const err = new Error(message) as TAppError;
+  err.code = code;
+  return err;
+};
 
 export default function HomePage() {
   const [state, setState] = useState<TAppState>({
@@ -37,6 +43,133 @@ export default function HomePage() {
 
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [sessionPassword, setSessionPassword] = useState("");
+
+  const decryptFileOnServer = async (file: File, password: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("password", password);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+    try {
+      const res = await fetch("/api/decrypt-excel", {
+        method: "POST",
+        body: form,
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        let payload: { code?: string; message?: string } | null = null;
+        try {
+          payload = await res.json();
+        } catch {
+          payload = null;
+        }
+
+        throw makeAppError(
+          payload?.message ?? "파일을 열지 못했어요. 다시 시도해주세요.",
+          payload?.code ?? "DECRYPT_FAILED",
+        );
+      }
+
+      return await res.arrayBuffer();
+    } catch (e: unknown) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        throw makeAppError(
+          "복호화가 지연되고 있어요. 잠시 후 다시 시도해주세요.",
+          "DECRYPT_TIMEOUT",
+        );
+      }
+      throw e;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
+
+  const ensureReadableArrayBuffer = async (file: File): Promise<ArrayBuffer> => {
+    const originalAb = await file.arrayBuffer();
+
+    // 1) 비용 없는 기본 경로: 클라이언트 파싱
+    try {
+      await readWorkbook(originalAb);
+      return originalAb;
+    } catch {
+      // 2) 실패하면 암호화 파일 가능성으로 복호화 경로 진입
+    }
+
+    let wrongCount = 0;
+    let lastError = "";
+    const maxWrongCount = 5;
+
+    const tryWithPassword = async (password: string) => {
+      const decryptedAb = await decryptFileOnServer(file, password);
+      await readWorkbook(decryptedAb); // 복호화 결과 검증
+      setSessionPassword(password);
+      return decryptedAb;
+    };
+
+    // 세션 비밀번호가 있으면 우선 자동 시도(UX 단축)
+    if (sessionPassword.trim()) {
+      try {
+        return await tryWithPassword(sessionPassword.trim());
+      } catch (e: any) {
+        if ((e as TAppError)?.code === "INVALID_PASSWORD") {
+          wrongCount += 1;
+          lastError = "마지막으로 입력한 비밀번호가 맞지 않았어요.";
+        } else {
+          throw new Error(
+            e?.message ??
+              "암호화된 파일을 처리하지 못했어요. 잠시 후 다시 시도해주세요.",
+          );
+        }
+      }
+    }
+
+    while (wrongCount < maxWrongCount) {
+      const remain = maxWrongCount - wrongCount;
+      const promptText = [
+        `${file.name} 파일은 암호화되어 있어요.`,
+        "엑셀 비밀번호를 입력해주세요.",
+        remain < maxWrongCount
+          ? `비밀번호가 일치하지 않았어요. 남은 시도: ${remain}회`
+          : "비밀번호는 같은 세션에서 자동 재사용됩니다.",
+        lastError ? `안내: ${lastError}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const input = window.prompt(promptText, sessionPassword || "");
+      if (input === null) {
+        throw new Error("암호화된 파일 업로드를 취소했어요.");
+      }
+
+      const password = input.trim();
+      if (!password) {
+        lastError = "비밀번호를 비워둘 수 없어요.";
+        continue;
+      }
+
+      try {
+        return await tryWithPassword(password);
+      } catch (e: any) {
+        if ((e as TAppError)?.code === "INVALID_PASSWORD") {
+          wrongCount += 1;
+          lastError = "비밀번호가 올바르지 않아요.";
+          continue;
+        }
+        throw new Error(
+          e?.message ??
+            "암호화된 파일을 처리하지 못했어요. 잠시 후 다시 시도해주세요.",
+        );
+      }
+    }
+
+    throw new Error(
+      "비밀번호 입력 시도를 5회 초과했어요. 다시 업로드해 시도해주세요.",
+    );
+  };
 
   // 새로고침 복구
   useEffect(() => {
@@ -71,7 +204,7 @@ export default function HomePage() {
       const standards: TStandardRow[] = [];
 
       for (const file of files) {
-        const ab = await file.arrayBuffer();
+        const ab = await ensureReadableArrayBuffer(file);
         const wb = await readWorkbook(ab);
         const ws = getFirstSheet(wb);
 
@@ -138,8 +271,6 @@ export default function HomePage() {
           "통합발주서 템플릿을 불러오지 못했어요. public/templates 경로를 확인해주세요.",
         );
       const templateAB = await res.arrayBuffer();
-      const u8 = new Uint8Array(templateAB);
-
       const integrationAB = await buildIntegrationWorkbook(
         templateAB,
         state.standardRows,
@@ -162,7 +293,7 @@ export default function HomePage() {
       const file = files[0];
       if (!file) return;
 
-      const ab = await file.arrayBuffer();
+      const ab = await ensureReadableArrayBuffer(file);
       const map = await buildHansomMap(ab);
 
       // 리포트
@@ -352,6 +483,7 @@ export default function HomePage() {
             <UploadBox
               title="원본 주문 엑셀 업로드 (한 번에)"
               description="네이버/토스/쿠팡/기타 파일을 여러 개 선택해서 올려도 됩니다."
+              disabled={!!busy}
               onFiles={onUploadOriginals}
             />
 
@@ -486,6 +618,7 @@ export default function HomePage() {
               title="결과 엑셀 업로드"
               description="운송장번호 + 거래처주문번호(또는 상품주문번호)가 포함된 파일"
               multiple={false}
+              disabled={!!busy}
               onFiles={onUploadHansomResult}
             />
 
