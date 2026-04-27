@@ -157,6 +157,8 @@ export const fillTrackingToOriginal = async (
     channel === "NAVER" ? findHeaderCol(headers, "통합배송지") : -1;
   const naverMsgCol =
     channel === "NAVER" ? findHeaderCol(headers, "배송메세지") : -1;
+  const naverCourierCol =
+    channel === "NAVER" ? findHeaderCol(headers, "택배사") : -1;
 
   for (let r = headerRowIndex + 1; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
@@ -167,6 +169,11 @@ export const fillTrackingToOriginal = async (
     const tracking = hansomMap.get(key);
     if (tracking) {
       setTextCell(row.getCell(trackCol), tracking);
+
+      // ✅ 네이버면 송장번호가 채워진 행의 택배사를 항상 CJ대한통운으로 덮어쓰기
+      if (channel === "NAVER" && naverCourierCol > 0) {
+        setTextCell(row.getCell(naverCourierCol), "CJ대한통운");
+      }
 
       // ✅ 토스면 송장번호가 채워진 행에만 주문상태를 "배송중"으로 변경
       if (channel === "TOSS" && tossStatusCol > 0) {
